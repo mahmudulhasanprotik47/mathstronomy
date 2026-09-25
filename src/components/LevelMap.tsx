@@ -36,9 +36,9 @@ export function LevelMap({ planet, progress, onBack, onPlay }: LevelMapProps) {
           <polyline
             points={PATH_POINTS}
             fill="none"
-            stroke="#ffffff33"
-            strokeWidth=".7"
-            strokeDasharray="2.4 2.4"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeDasharray="1 9"
             strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
           />

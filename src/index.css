@@ -1,6 +1,26 @@
-/* Ported from legacy-reference/index.html. Same look; only selectors and the
-   screen/overlay show-hide rules changed, plus the map height now scales with level count.
-   The pop/wiggle keyframes live in src/hooks/useTileAnimations.ts (Web Animations API). */
+/* "Celestial Atlas": flat chrome, chunky cream outlines, illustrated planets.
+   Gradients appear only in the planet illustrations and the background nebula.
+   Performance rule: every transition and animation here touches only transform, scale,
+   rotate or opacity. Colour changes (e.g. selecting a tile) are instant, never animated. */
+
+/* ---------- tokens ---------- */
+:root {
+  --bg: #0c1530;
+  --panel: #16234a;
+  --ink: #fff7e8;
+  --muted: #8d9ac4;
+  --gold: #ffd666;
+  --shade: #060b1c; /* flat offset "print" shadow */
+  --navy-ink: #0c1530;
+  --accent: var(--gold); /* per planet, set by themeVars() */
+  --on-accent: var(--navy-ink);
+
+  --font-display: 'Fredoka', sans-serif;
+  --font-body: 'Space Grotesk', sans-serif;
+  --outline: 3px solid var(--ink);
+  --r-card: 20px;
+  --r-pill: 22px;
+}
 
 /* ---------- base ---------- */
 *,
@@ -10,35 +30,14 @@
   margin: 0;
   padding: 0;
 }
-:root {
-  --bg1: #070b1e;
-  --bg2: #161f47;
-  --panel: rgba(255, 255, 255, 0.07);
-  --panel2: rgba(255, 255, 255, 0.11);
-  --stroke: rgba(255, 255, 255, 0.16);
-  --text: #eef1ff;
-  --muted: #9fa9cf;
-  --gold: #ffd166;
-  --p1: #ff9440; /* current planet colours */
-  --p2: #ff5f6d;
-  --radius: 22px;
-}
 html,
 body {
   height: 100%;
 }
 body {
-  font-family:
-    'SF Pro Rounded',
-    'Segoe UI Variable Display',
-    'Segoe UI',
-    system-ui,
-    -apple-system,
-    sans-serif;
-  color: var(--text);
-  background:
-    radial-gradient(120% 90% at 50% 0%, var(--bg2) 0%, var(--bg1) 60%, #04061199 100%) fixed,
-    var(--bg1);
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: var(--bg);
   min-height: 100%;
   overflow-x: hidden;
   -webkit-tap-highlight-color: transparent;
@@ -54,32 +53,38 @@ button {
   user-select: none;
   -webkit-user-select: none;
 }
+:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 3px;
+}
 
-/* ---------- starfield ---------- */
+/* ---------- background: nebula + stars + grain ---------- */
 .sky {
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
+  background:
+    radial-gradient(38% 32% at 6% 22%, rgba(139, 95, 191, 0.28), transparent 70%),
+    radial-gradient(42% 36% at 96% 72%, rgba(56, 182, 194, 0.26), transparent 70%);
+  /* Own compositor layer: scrolling and gameplay never repaint it. */
+  will-change: transform;
 }
-.sky i {
+.sky-stars {
   position: absolute;
-  display: block;
-  border-radius: 50%;
-  background: #fff;
-  animation: tw 4s ease-in-out infinite;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
-@keyframes tw {
-  0%,
-  100% {
-    opacity: 0.15;
-    transform: scale(0.7);
-  }
-  50% {
-    opacity: 0.9;
-    transform: scale(1);
-  }
+/* Film grain: an feTurbulence SVG rasterised once as a background tile. */
+.sky::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.045;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
 }
 
 /* ---------- layout ---------- */
@@ -107,71 +112,44 @@ button {
 
 .title {
   text-align: center;
-  margin: 14px 0 6px;
-  font-size: clamp(30px, 9vw, 42px);
-  font-weight: 800;
-  letter-spacing: -0.5px;
-  background: linear-gradient(100deg, #fff, #ffd166 45%, #8fd8ff);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  margin: 14px 0 4px;
+  font-family: var(--font-display);
+  font-size: clamp(36px, 10.5vw, 50px);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--ink);
+  text-shadow: 0 4px 0 #8b5fbf;
 }
 .sub {
   text-align: center;
   color: var(--muted);
   font-size: 15px;
-  margin-bottom: 22px;
+  margin-bottom: 24px;
 }
 
 /* ---------- home planets ---------- */
 .planets {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: 16px;
 }
 .planet {
-  position: relative;
   background: var(--panel);
-  border: 1px solid var(--stroke);
-  border-radius: var(--radius);
-  padding: 16px 12px 14px;
+  border: var(--outline);
+  border-radius: var(--r-card);
+  box-shadow: 0 6px 0 var(--accent);
+  padding: 14px 10px 16px;
   text-align: center;
-  transition:
-    transform 0.18s ease,
-    background 0.18s ease;
-  overflow: hidden;
+  transition: transform 0.15s ease;
 }
 .planet:active {
-  transform: scale(0.96);
+  transform: translateY(3px);
 }
-.planet .orb {
-  width: 82px;
-  height: 82px;
-  margin: 0 auto 10px;
-  border-radius: 50%;
-  position: relative;
-  display: grid;
-  place-items: center;
-  font-size: 40px;
-  font-weight: 800;
-  color: #fff;
-  background:
-    radial-gradient(circle at 32% 28%, #ffffff88, transparent 42%),
-    linear-gradient(150deg, var(--c1), var(--c2));
-  box-shadow:
-    0 10px 26px -8px var(--c2),
-    inset 0 -10px 20px -8px #0008;
+.planet-art {
+  display: block;
+  margin: 0 auto 8px;
+  overflow: visible;
   animation: bob 5s ease-in-out infinite;
-}
-.planet .orb::after {
-  content: '';
-  position: absolute;
-  inset: -14px -26px;
-  border-radius: 50%;
-  border: 3px solid #ffffff2e;
-  border-bottom-color: transparent;
-  border-top-color: transparent;
-  transform: rotate(-18deg);
 }
 @keyframes bob {
   0%,
@@ -179,13 +157,14 @@ button {
     transform: translateY(0);
   }
   50% {
-    transform: translateY(-7px);
+    transform: translateY(-6px);
   }
 }
 .planet b {
   display: block;
-  font-size: 16px;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
 }
 .planet small {
   display: block;
@@ -197,53 +176,50 @@ button {
   margin-top: 8px;
   font-size: 13px;
   color: var(--gold);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 /* ---------- top bar ---------- */
 .bar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 12px;
+  margin-bottom: 12px;
 }
-.back {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
+.back,
+.icobtn {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
   background: var(--panel);
-  border: 1px solid var(--stroke);
+  border: var(--outline);
+  box-shadow: 0 4px 0 var(--shade);
   display: grid;
   place-items: center;
-  font-size: 20px;
   flex: none;
   transition: transform 0.15s;
 }
-.back:active {
-  transform: scale(0.9);
+.back {
+  font-size: 20px;
+}
+.icobtn {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--gold);
+}
+.back:active,
+button.icobtn:active {
+  transform: translateY(2px);
 }
 .bar h2 {
-  font-size: 19px;
-  font-weight: 800;
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 600;
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.icobtn {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  background: var(--panel);
-  border: 1px solid var(--stroke);
-  display: grid;
-  place-items: center;
-  font-size: 18px;
-  flex: none;
-}
-.icobtn:active {
-  transform: scale(0.9);
 }
 
 /* ---------- level map ---------- */
@@ -252,9 +228,10 @@ button {
   position: relative;
   height: calc(var(--count, 5) * 75px);
   margin: 10px 0 4px;
-  background: linear-gradient(180deg, #ffffff0a, #ffffff03);
-  border: 1px solid var(--stroke);
-  border-radius: var(--radius);
+  background: var(--panel);
+  border: var(--outline);
+  border-radius: var(--r-card);
+  box-shadow: 0 6px 0 var(--shade);
   overflow: hidden;
 }
 .mapwrap svg {
@@ -262,6 +239,7 @@ button {
   inset: 0;
   width: 100%;
   height: 100%;
+  color: rgba(255, 247, 232, 0.4);
 }
 .node {
   position: absolute;
@@ -272,114 +250,115 @@ button {
   display: grid;
   place-items: center;
   font-size: 24px;
-  font-weight: 800;
-  background: linear-gradient(150deg, var(--p1), var(--p2));
-  border: 3px solid #ffffff33;
-  box-shadow: 0 12px 24px -10px var(--p2);
+  font-weight: 600;
+  background: var(--accent);
+  color: var(--on-accent);
+  border: var(--outline);
+  box-shadow: 0 5px 0 var(--shade);
   transition: transform 0.16s ease;
 }
 .node:active {
-  transform: translate(-50%, -50%) scale(0.92);
+  transform: translate(-50%, -50%) translateY(2px);
 }
 .node.locked {
-  background: #ffffff12;
-  border-color: #ffffff1c;
-  color: #7a83a8;
+  background: var(--bg);
+  border: 3px dashed var(--muted);
+  color: var(--muted);
   box-shadow: none;
   cursor: default;
 }
 .node .stars {
   position: absolute;
-  bottom: -19px;
-  font-size: 12px;
+  bottom: -21px;
+  font-size: 13px;
   letter-spacing: 1px;
   color: var(--gold);
   white-space: nowrap;
-  text-shadow: 0 1px 3px #000;
 }
 .node .stars .off {
-  color: #ffffff30;
+  color: var(--muted);
+  opacity: 0.45;
 }
 .legend {
   text-align: center;
   color: var(--muted);
-  font-size: 13.5px;
-  margin-top: 10px;
+  font-size: 14px;
+  margin-top: 12px;
   line-height: 1.5;
+}
+.legend b,
+.rule b {
+  color: var(--ink);
 }
 
 /* ---------- game ---------- */
 .targetcard {
-  background: linear-gradient(150deg, var(--p1), var(--p2));
-  border-radius: var(--radius);
-  padding: 14px 16px;
+  background: var(--accent);
+  color: var(--on-accent);
+  border: var(--outline);
+  border-radius: var(--r-card);
+  box-shadow: 0 6px 0 var(--shade);
+  padding: 12px 16px 14px;
   text-align: center;
-  box-shadow: 0 14px 30px -16px var(--p2);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 .targetcard .lab {
+  font-family: var(--font-display);
   font-size: 13px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 1.6px;
-  opacity: 0.85;
-  font-weight: 700;
+  letter-spacing: 2px;
 }
 .targetcard .num {
-  font-size: clamp(44px, 15vw, 62px);
-  font-weight: 900;
+  font-size: clamp(46px, 15vw, 64px);
+  font-weight: 600;
   line-height: 1.05;
-  text-shadow: 0 3px 0 #0002;
 }
 .rule {
   text-align: center;
   color: var(--muted);
-  font-size: 13.5px;
-  margin: 8px 4px 12px;
+  font-size: 14px;
+  margin: 10px 4px 12px;
   line-height: 1.45;
 }
 .hud {
   display: flex;
   justify-content: center;
-  gap: 14px;
+  gap: 16px;
   color: var(--muted);
   font-size: 13px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 .hud b {
-  color: var(--text);
+  color: var(--ink);
+  font-weight: 600;
 }
 
 .grid {
   display: grid;
   grid-template-columns: repeat(var(--cols, 3), 1fr);
-  gap: 12px;
+  gap: 14px;
   margin: 0 auto;
   max-width: 420px;
 }
 .tile {
   aspect-ratio: 1/1;
-  border-radius: 20px;
-  font-size: clamp(24px, 7.5vw, 34px);
-  font-weight: 800;
-  background: linear-gradient(155deg, var(--p1), var(--p2));
-  border: 3px solid #ffffff1f;
-  box-shadow:
-    0 10px 22px -12px #000,
-    inset 0 -8px 16px -10px #0006;
+  border-radius: var(--r-card);
+  font-size: clamp(26px, 8vw, 36px);
+  font-weight: 600;
+  background: var(--accent);
+  color: var(--on-accent);
+  border: var(--outline);
+  box-shadow: 0 5px 0 var(--shade);
   display: grid;
   place-items: center;
   position: relative;
-  transition:
-    box-shadow 0.18s ease,
-    border-color 0.18s ease,
-    scale 0.18s ease;
+  transition: scale 0.18s ease;
 }
 .tile.sel {
-  border-color: #fff;
+  background: var(--gold);
+  color: var(--navy-ink);
   scale: 1.07;
-  box-shadow:
-    0 0 0 4px #ffffff55,
-    0 14px 26px -10px var(--p2);
 }
 .tile.receiving {
   scale: 1.1;
@@ -387,38 +366,38 @@ button {
 
 .actions {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   justify-content: center;
-  margin-top: 18px;
+  margin-top: 20px;
   flex-wrap: wrap;
 }
 .btn {
-  padding: 12px 18px;
-  border-radius: 16px;
-  background: var(--panel2);
-  border: 1px solid var(--stroke);
-  font-weight: 700;
-  font-size: 15px;
-  transition:
-    transform 0.15s ease,
-    background 0.15s;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  padding: 11px 20px;
+  border-radius: var(--r-pill);
+  background: var(--panel);
+  border: var(--outline);
+  box-shadow: 0 4px 0 var(--shade);
+  transition: transform 0.15s ease;
 }
 .btn:active {
-  transform: scale(0.94);
+  transform: translateY(2px);
 }
 .btn[disabled] {
   opacity: 0.4;
   pointer-events: none;
 }
 .btn.big {
-  background: linear-gradient(150deg, var(--p1), var(--p2));
-  border-color: #ffffff33;
-  padding: 14px 26px;
+  background: var(--gold);
+  color: var(--navy-ink);
   font-size: 17px;
+  padding: 13px 26px;
 }
 .nudge {
   text-align: center;
-  margin-top: 14px;
+  margin-top: 16px;
   color: var(--gold);
   font-size: 14px;
   font-weight: 600;
@@ -426,6 +405,7 @@ button {
 }
 
 /* ---------- win overlay ---------- */
+/* Flat scrim instead of backdrop blur: cheaper on phones and truer to print. */
 .overlay {
   position: fixed;
   inset: 0;
@@ -433,43 +413,44 @@ button {
   display: grid;
   place-items: center;
   padding: 20px;
-  background: #04061dcc;
-  backdrop-filter: blur(6px);
+  background: rgba(6, 11, 28, 0.84);
   animation: in 0.3s ease both;
 }
 .card {
   width: 100%;
   max-width: 360px;
-  background: linear-gradient(170deg, #20295a, #141b3d);
-  border: 1px solid var(--stroke);
-  border-radius: 26px;
+  background: var(--panel);
+  border: var(--outline);
+  border-radius: 24px;
+  box-shadow: 0 8px 0 var(--accent);
   padding: 26px 22px;
   text-align: center;
-  box-shadow: 0 30px 70px -20px #000;
 }
 .card h3 {
-  font-size: 28px;
-  font-weight: 900;
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 700;
   margin-bottom: 4px;
 }
 .card p {
   color: var(--muted);
-  font-size: 14.5px;
-  margin-bottom: 14px;
+  font-size: 15px;
+  margin-bottom: 12px;
 }
 .bigstars {
-  font-size: 40px;
+  font-size: 42px;
   letter-spacing: 6px;
   margin: 6px 0 12px;
-  color: #ffffff22;
+  color: var(--muted);
 }
 .bigstars span {
   display: inline-block;
+  opacity: 0.35;
   animation: st 0.5s cubic-bezier(0.2, 1.5, 0.4, 1) both;
 }
 .bigstars span.on {
   color: var(--gold);
-  text-shadow: 0 0 18px #ffd16688;
+  opacity: 1;
 }
 @keyframes st {
   from {
@@ -508,12 +489,7 @@ button {
 
 @media (max-width: 360px) {
   .planets {
-    gap: 10px;
-  }
-  .planet .orb {
-    width: 70px;
-    height: 70px;
-    font-size: 34px;
+    gap: 12px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

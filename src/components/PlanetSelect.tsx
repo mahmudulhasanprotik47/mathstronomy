@@ -1,6 +1,8 @@
 import { LEVEL_COUNT } from '../data/levels';
 import { PLANETS, type PlanetKey } from '../data/planets';
 import type { SaveData } from '../hooks/useGameSave';
+import { PlanetIllustration } from './PlanetIllustration';
+import { themeVars } from './theme';
 
 interface PlanetSelectProps {
   progress: SaveData['progress'];
@@ -21,10 +23,14 @@ export function PlanetSelect({ progress, soundOn, onToggleSound, onPick }: Plane
           const total = stars.reduce<number>((a, b) => a + b, 0);
           const done = stars.filter((s) => s > 0).length;
           return (
-            <button key={p.key} type="button" className="planet" onClick={() => onPick(p.key)}>
-              <div className="orb" style={{ '--c1': p.c1, '--c2': p.c2 }}>
-                {p.sym}
-              </div>
+            <button
+              key={p.key}
+              type="button"
+              className="planet"
+              style={themeVars(p)}
+              onClick={() => onPick(p.key)}
+            >
+              <PlanetIllustration planet={p.key} />
               <b>{p.name}</b>
               <small>
                 {done}/{LEVEL_COUNT} levels

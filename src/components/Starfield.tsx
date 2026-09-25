@@ -1,32 +1,27 @@
-import { useState } from 'react';
+import { memo } from 'react';
 
-function makeStars() {
-  return Array.from({ length: 70 }, () => ({
-    left: Math.random() * 100,
-    top: Math.random() * 100,
-    size: Math.random() * 2.2 + 1,
-    delay: (Math.random() * 4).toFixed(2),
-  }));
-}
+const STAR_COLORS = ['#FFF7E8', '#7C8CC7'];
 
-/** Twinkling background stars. Random positions are generated once, not on every render. */
-export function Starfield() {
-  const [stars] = useState(makeStars);
+// Scattered once per page load. The nebula blobs and film grain are static CSS on .sky.
+const STARS = Array.from({ length: 24 }, (_, i) => ({
+  x: Math.random() * 100,
+  y: Math.random() * 100,
+  r: 1 + Math.random(),
+  fill: STAR_COLORS[i % 2],
+}));
+
+/**
+ * Fixed background: nebula, stars, grain. Rendered by App beside the screens (never inside
+ * GameBoard) and memoised, so gameplay never re-renders or repaints it.
+ */
+export const Starfield = memo(function Starfield() {
   return (
     <div className="sky" aria-hidden="true">
-      {stars.map((s, i) => (
-        <i
-          key={i}
-          style={{
-            left: `${s.left}%`,
-            top: `${s.top}%`,
-            width: `${s.size}px`,
-            height: `${s.size}px`,
-            animationDelay: `${s.delay}s`,
-            opacity: 0.3,
-          }}
-        />
-      ))}
+      <svg className="sky-stars">
+        {STARS.map((s, i) => (
+          <circle key={i} cx={`${s.x}%`} cy={`${s.y}%`} r={s.r} fill={s.fill} />
+        ))}
+      </svg>
     </div>
   );
-}
+});

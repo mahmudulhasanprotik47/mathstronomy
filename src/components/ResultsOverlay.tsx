@@ -13,7 +13,7 @@ interface ResultsOverlayProps {
 }
 
 const TITLES = ['', 'Nice work!', 'Great job!', 'Perfect!'] as const;
-const CONFETTI_COLORS = ['#ffd166', '#ff7b8a', '#7cd6ff', '#9dffbf', '#c99bff', '#ffffff'];
+const CONFETTI_COLORS = ['#FFD666', '#FF6B4A', '#38B6C2', '#8B5FBF', '#4FB477', '#FFF7E8'];
 
 function makeConfetti() {
   return Array.from({ length: 44 }, () => ({
