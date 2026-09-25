@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#070b1e">
+<title>Number Explorers</title>
+<style>
+/* ---------- base ---------- */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg1:#070b1e; --bg2:#161f47;
+  --panel:rgba(255,255,255,.07);
+  --panel2:rgba(255,255,255,.11);
+  --stroke:rgba(255,255,255,.16);
+  --text:#eef1ff; --muted:#9fa9cf;
+  --gold:#ffd166;
+  --p1:#ff9440; --p2:#ff5f6d;      /* current planet colours */
+  --radius:22px;
+}
+html,body{height:100%}
+body{
+  font-family:"SF Pro Rounded","Segoe UI Variable Display","Segoe UI",system-ui,-apple-system,sans-serif;
+  color:var(--text);
+  background:radial-gradient(120% 90% at 50% 0%,var(--bg2) 0%,var(--bg1) 60%,#04061199 100%) fixed,var(--bg1);
+  min-height:100%;
+  overflow-x:hidden;
+  -webkit-tap-highlight-color:transparent;
+  -webkit-text-size-adjust:100%;
+}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+
+/* ---------- starfield ---------- */
+#sky{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+#sky i{position:absolute;display:block;border-radius:50%;background:#fff;animation:tw 4s ease-in-out infinite}
+@keyframes tw{0%,100%{opacity:.15;transform:scale(.7)}50%{opacity:.9;transform:scale(1)}}
+
+/* ---------- layout ---------- */
+#app{position:relative;z-index:1;max-width:560px;margin:0 auto;padding:18px 16px calc(28px + env(safe-area-inset-bottom))}
+.screen{display:none;animation:in .32s ease both}
+.screen.active{display:block}
+@keyframes in{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+.title{text-align:center;margin:14px 0 6px;font-size:clamp(30px,9vw,42px);font-weight:800;letter-spacing:-.5px;
+  background:linear-gradient(100deg,#fff,#ffd166 45%,#8fd8ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{text-align:center;color:var(--muted);font-size:15px;margin-bottom:22px}
+
+/* ---------- home planets ---------- */
+.planets{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.planet{
+  position:relative;background:var(--panel);border:1px solid var(--stroke);border-radius:var(--radius);
+  padding:16px 12px 14px;text-align:center;transition:transform .18s ease,background .18s ease;overflow:hidden
+}
+.planet:active{transform:scale(.96)}
+.planet .orb{
+  width:82px;height:82px;margin:0 auto 10px;border-radius:50%;position:relative;
+  display:grid;place-items:center;font-size:40px;font-weight:800;color:#fff;
+  background:radial-gradient(circle at 32% 28%,#ffffff88,transparent 42%),linear-gradient(150deg,var(--c1),var(--c2));
+  box-shadow:0 10px 26px -8px var(--c2),inset 0 -10px 20px -8px #0008;
+  animation:bob 5s ease-in-out infinite
+}
+.planet .orb::after{
+  content:"";position:absolute;inset:-14px -26px;border-radius:50%;
+  border:3px solid #ffffff2e;border-bottom-color:transparent;border-top-color:transparent;transform:rotate(-18deg)
+}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+.planet b{display:block;font-size:16px;font-weight:700}
+.planet small{display:block;color:var(--muted);font-size:12.5px;margin-top:3px}
+.planet .prog{margin-top:8px;font-size:13px;color:var(--gold);font-weight:700}
+
+/* ---------- top bar ---------- */
+.bar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.back{width:44px;height:44px;border-radius:14px;background:var(--panel);border:1px solid var(--stroke);
+  display:grid;place-items:center;font-size:20px;flex:none;transition:transform .15s}
+.back:active{transform:scale(.9)}
+.bar h2{font-size:19px;font-weight:800;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.icobtn{width:44px;height:44px;border-radius:14px;background:var(--panel);border:1px solid var(--stroke);
+  display:grid;place-items:center;font-size:18px;flex:none}
+.icobtn:active{transform:scale(.9)}
+
+/* ---------- level map ---------- */
+.mapwrap{position:relative;height:430px;margin:10px 0 4px;
+  background:linear-gradient(180deg,#ffffff0a,#ffffff03);border:1px solid var(--stroke);border-radius:var(--radius);overflow:hidden}
+.mapwrap svg{position:absolute;inset:0;width:100%;height:100%}
+.node{position:absolute;transform:translate(-50%,-50%);width:74px;height:74px;border-radius:50%;
+  display:grid;place-items:center;font-size:24px;font-weight:800;
+  background:linear-gradient(150deg,var(--p1),var(--p2));border:3px solid #ffffff33;
+  box-shadow:0 12px 24px -10px var(--p2);transition:transform .16s ease}
+.node:active{transform:translate(-50%,-50%) scale(.92)}
+.node.locked{background:#ffffff12;border-color:#ffffff1c;color:#7a83a8;box-shadow:none;cursor:default}
+.node .stars{position:absolute;bottom:-19px;font-size:12px;letter-spacing:1px;color:var(--gold);white-space:nowrap;text-shadow:0 1px 3px #000}
+.node .stars .off{color:#ffffff30}
+.legend{text-align:center;color:var(--muted);font-size:13.5px;margin-top:10px;line-height:1.5}
+
+/* ---------- game ---------- */
+.targetcard{
+  background:linear-gradient(150deg,var(--p1),var(--p2));border-radius:var(--radius);
+  padding:14px 16px;text-align:center;box-shadow:0 14px 30px -16px var(--p2);margin-bottom:6px
+}
+.targetcard .lab{font-size:13px;text-transform:uppercase;letter-spacing:1.6px;opacity:.85;font-weight:700}
+.targetcard .num{font-size:clamp(44px,15vw,62px);font-weight:900;line-height:1.05;text-shadow:0 3px 0 #0002}
+.rule{text-align:center;color:var(--muted);font-size:13.5px;margin:8px 4px 12px;line-height:1.45}
+.hud{display:flex;justify-content:center;gap:14px;color:var(--muted);font-size:13px;margin-bottom:12px}
+.hud b{color:var(--text)}
+
+#grid{display:grid;grid-template-columns:repeat(var(--cols,3),1fr);gap:12px;margin:0 auto;max-width:420px}
+.tile{
+  aspect-ratio:1/1;border-radius:20px;font-size:clamp(24px,7.5vw,34px);font-weight:800;
+  background:linear-gradient(155deg,var(--p1),var(--p2));
+  border:3px solid #ffffff1f;box-shadow:0 10px 22px -12px #000,inset 0 -8px 16px -10px #0006;
+  display:grid;place-items:center;position:relative;
+  transition:box-shadow .18s ease,border-color .18s ease,scale .18s ease
+}
+.tile.sel{border-color:#fff;scale:1.07;box-shadow:0 0 0 4px #ffffff55,0 14px 26px -10px var(--p2)}
+.tile.receiving{scale:1.1}
+.tile.pop{animation:pop .42s cubic-bezier(.22,1.4,.4,1)}
+@keyframes pop{0%{scale:.55}60%{scale:1.16}100%{scale:1}}
+.tile.wiggle{animation:wig .5s ease}
+@keyframes wig{0%,100%{rotate:0deg}15%{rotate:-7deg}30%{rotate:7deg}45%{rotate:-5deg}60%{rotate:5deg}75%{rotate:-2deg}}
+
+.actions{display:flex;gap:10px;justify-content:center;margin-top:18px;flex-wrap:wrap}
+.btn{padding:12px 18px;border-radius:16px;background:var(--panel2);border:1px solid var(--stroke);
+  font-weight:700;font-size:15px;transition:transform .15s ease,background .15s}
+.btn:active{transform:scale(.94)}
+.btn[disabled]{opacity:.4;pointer-events:none}
+.btn.big{background:linear-gradient(150deg,var(--p1),var(--p2));border-color:#ffffff33;padding:14px 26px;font-size:17px}
+.nudge{text-align:center;margin-top:14px;color:var(--gold);font-size:14px;font-weight:600;min-height:20px}
+
+/* ---------- win overlay ---------- */
+.overlay{position:fixed;inset:0;z-index:9;display:grid;place-items:center;padding:20px;
+  background:#04061dcc;backdrop-filter:blur(6px);animation:in .3s ease both}
+.overlay[hidden]{display:none}
+.card{width:100%;max-width:360px;background:linear-gradient(170deg,#20295a,#141b3d);
+  border:1px solid var(--stroke);border-radius:26px;
+  padding:26px 22px;text-align:center;box-shadow:0 30px 70px -20px #000}
+.card h3{font-size:28px;font-weight:900;margin-bottom:4px}
+.card p{color:var(--muted);font-size:14.5px;margin-bottom:14px}
+.bigstars{font-size:40px;letter-spacing:6px;margin:6px 0 12px;color:#ffffff22}
+.bigstars span{display:inline-block;animation:st .5s cubic-bezier(.2,1.5,.4,1) both}
+.bigstars span.on{color:var(--gold);text-shadow:0 0 18px #ffd16688}
+@keyframes st{from{scale:0;rotate:-40deg}to{scale:1;rotate:0deg}}
+.card .actions{margin-top:6px}
+#confetti{position:fixed;inset:0;z-index:10;pointer-events:none;overflow:hidden}
+#confetti i{position:absolute;top:-24px;width:10px;height:15px;border-radius:2px;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(108vh) rotate(760deg);opacity:.15}}
+
+@media (max-width:360px){ .planets{gap:10px} .planet .orb{width:70px;height:70px;font-size:34px} }
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.05s!important}
+}
+</style>
+</head>
+<body>
+<div id="sky"></div>
+
+<main id="app">
+
+  <!-- ============ HOME ============ -->
+  <section id="screen-home" class="screen active">
+    <h1 class="title">Number Explorers</h1>
+    <p class="sub">Pick a planet to explore 🚀</p>
+    <div class="planets" id="planetList"></div>
+    <p class="legend" style="margin-top:18px">Tap two tiles to join them.<br>Reach the target number to land safely!</p>
+    <div class="actions" style="margin-top:16px">
+      <button class="btn" id="soundBtn">🔊 Sound: On</button>
+    </div>
+  </section>
+
+  <!-- ============ MAP ============ -->
+  <section id="screen-map" class="screen">
+    <div class="bar">
+      <button class="back" id="mapBack" aria-label="Back to planets">←</button>
+      <h2 id="mapTitle">Planet</h2>
+      <div class="icobtn" id="mapStars" aria-label="Stars earned">⭐</div>
+    </div>
+    <div class="mapwrap" id="mapWrap">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <polyline id="mapPath" fill="none" stroke="#ffffff33" stroke-width=".7"
+                  stroke-dasharray="2.4 2.4" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+      </svg>
+    </div>
+    <p class="legend" id="mapRule"></p>
+  </section>
+
+  <!-- ============ GAME ============ -->
+  <section id="screen-game" class="screen">
+    <div class="bar">
+      <button class="back" id="gameBack" aria-label="Back to level map">←</button>
+      <h2 id="gameTitle">Level</h2>
+      <button class="icobtn" id="soundBtn2" aria-label="Toggle sound">🔊</button>
+    </div>
+    <div class="targetcard">
+      <div class="lab">Make this number</div>
+      <div class="num" id="targetNum" aria-live="polite">0</div>
+    </div>
+    <p class="rule" id="gameRule"></p>
+    <div class="hud"><span>Moves <b id="moveCount">0</b></span><span>Par <b id="parCount">0</b></span></div>
+    <div id="grid"></div>
+    <div class="nudge" id="nudge"></div>
+    <div class="actions">
+      <button class="btn" id="undoBtn">↶ Undo</button>
+      <button class="btn" id="shuffleBtn">✨ New tiles</button>
+    </div>
+  </section>
+</main>
+
+<div class="overlay" id="winOverlay" hidden>
+  <div class="card">
+    <h3 id="winTitle">You did it!</h3>
+    <p id="winSub">Level complete</p>
+    <div class="bigstars" id="winStars"></div>
+    <div class="actions">
+      <button class="btn big" id="nextBtn">Next level →</button>
+      <button class="btn" id="againBtn">Play again</button>
+      <button class="btn" id="mapBtn">Map</button>
+    </div>
+  </div>
+</div>
+<div id="confetti"></div>
+
+<script>
+"use strict";
+
+/* ================= data ================= */
+const PLANETS = [
+  {key:'add', name:'Plus Planet',  sym:'+', c1:'#ffa14a', c2:'#ff5f6d',
+   rule:'Tap any two tiles to <b>add</b> them together.'},
+  {key:'sub', name:'Minus Moon',   sym:'−', c1:'#6ed0ff', c2:'#3a6fd8',
+   rule:'Tap the <b>bigger</b> tile first, then a smaller one, to subtract.'},
+  {key:'mul', name:'Times Star',   sym:'×', c1:'#c98cff', c2:'#7a45d6',
+   rule:'Tap any two tiles to <b>multiply</b> them.'},
+  {key:'div', name:'Divide Dome',  sym:'÷', c1:'#5fe6ad', c2:'#149e74',
+   rule:'Two tiles join only if they <b>share evenly</b>. Wiggle means try another pair!'}
+];
+const PMAP = {}; PLANETS.forEach(p=>PMAP[p.key]=p);
+
+const LEVELS = {
+  add:[ {par:1,dist:2,lo:1,hi:9},  {par:2,dist:2,lo:1,hi:9},  {par:2,dist:3,lo:2,hi:12},
+        {par:3,dist:2,lo:2,hi:15}, {par:3,dist:3,lo:3,hi:20} ],
+  sub:[ {par:1,dist:2,tLo:2,tHi:9,bLo:1,bHi:8},   {par:2,dist:2,tLo:2,tHi:10,bLo:1,bHi:9},
+        {par:2,dist:3,tLo:3,tHi:12,bLo:2,bHi:10}, {par:3,dist:2,tLo:3,tHi:12,bLo:2,bHi:9},
+        {par:3,dist:3,tLo:4,tHi:15,bLo:2,bHi:12} ],
+  mul:[ {par:1,dist:2,lo:2,hi:5,cap:40},  {par:1,dist:3,lo:2,hi:9,cap:81},
+        {par:2,dist:2,lo:2,hi:5,cap:100}, {par:2,dist:3,lo:2,hi:6,cap:180},
+        {par:3,dist:3,lo:2,hi:4,cap:220} ],
+  div:[ {par:1,dist:2,tLo:2,tHi:10,dLo:2,dHi:5,cap:60},  {par:1,dist:3,tLo:2,tHi:12,dLo:2,dHi:9,cap:110},
+        {par:2,dist:2,tLo:2,tHi:10,dLo:2,dHi:4,cap:160}, {par:2,dist:3,tLo:2,tHi:12,dLo:2,dHi:5,cap:250},
+        {par:3,dist:2,tLo:2,tHi:8,dLo:2,dHi:3,cap:220} ]
+};
+const NODE_POS = [{x:26,y:85},{x:71,y:68},{x:29,y:51},{x:72,y:33},{x:50,y:15}];
+
+/* ================= save ================= */
+const LS_KEY = 'numberExplorers.v1';
+function freshSave(){
+  const p = {}; PLANETS.forEach(pl=>p[pl.key]={unlocked:1,stars:[0,0,0,0,0]});
+  return {v:1, sound:true, progress:p};
+}
+function loadSave(){
+  try{
+    const raw = JSON.parse(localStorage.getItem(LS_KEY));
+    if(raw && raw.v===1 && raw.progress){
+      const base = freshSave();
+      PLANETS.forEach(pl=>{
+        const s = raw.progress[pl.key];
+        if(s){
+          base.progress[pl.key].unlocked = Math.min(5, Math.max(1, s.unlocked|0));
+          if(Array.isArray(s.stars)) for(let i=0;i<5;i++) base.progress[pl.key].stars[i] = Math.min(3, Math.max(0, s.stars[i]|0));
+        }
+      });
+      base.sound = raw.sound !== false;
+      return base;
+    }
+  }catch(e){}
+  return freshSave();
+}
+let save = loadSave();
+function persist(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(save)); }catch(e){} }
+
+/* ================= sound ================= */
+let AC = null;
+function ensureAudio(){
+  if(!AC){ try{ AC = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ AC = null; } }
+  if(AC && AC.state === 'suspended') AC.resume();
+}
+function tone(freq, delay, dur, type, vol){
+  if(!AC || !save.sound) return;
+  const t = AC.currentTime + delay;
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type||'sine'; o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(vol||0.15, t+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+  o.connect(g); g.connect(AC.destination);
+  o.start(t); o.stop(t+dur+0.05);
+}
+const sfx = {
+  pick(){ tone(640,0,.11,'sine',.12); },
+  merge(){ tone(520,0,.12,'sine',.14); tone(790,.07,.2,'sine',.12); },
+  nope(){ tone(215,0,.1,'triangle',.11); tone(170,.09,.14,'triangle',.1); },
+  win(){ [523,659,784,1047].forEach((f,i)=>tone(f,i*.11,.35,'sine',.14)); },
+  tap(){ tone(420,0,.08,'sine',.09); }
+};
+
+/* ================= helpers ================= */
+const $ = id => document.getElementById(id);
+const rnd = (lo,hi) => lo + Math.floor(Math.random()*(hi-lo+1));
+function shuffled(a){ a = a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+/* ================= starfield ================= */
+(function sky(){
+  const el = $('sky'), frag = document.createDocumentFragment();
+  for(let i=0;i<70;i++){
+    const s = document.createElement('i');
+    const sz = Math.random()*2.2+1;
+    s.style.cssText = `left:${Math.random()*100}%;top:${Math.random()*100}%;width:${sz}px;height:${sz}px;`+
+                      `animation-delay:${(Math.random()*4).toFixed(2)}s;opacity:.3`;
+    frag.appendChild(s);
+  }
+  el.appendChild(frag);
+})();
+
+/* ================= level generation ================= */
+/* Every level is built backwards from a guaranteed solution chain,
+   so a winning sequence of merges always exists. Extra "distractor"
+   tiles are decoration -- they can never block the solution. */
+function generate(key, idx){
+  const cfg = LEVELS[key][idx];
+  for(let attempt=0; attempt<200; attempt++){
+    let core, target;
+    if(key==='add'){
+      core = []; for(let i=0;i<=cfg.par;i++) core.push(rnd(cfg.lo,cfg.hi));
+      target = core.reduce((a,b)=>a+b,0);
+    } else if(key==='mul'){
+      core = []; for(let i=0;i<=cfg.par;i++) core.push(rnd(cfg.lo,cfg.hi));
+      target = core.reduce((a,b)=>a*b,1);
+      if(target > cfg.cap || target < 4) continue;
+    } else if(key==='sub'){
+      target = rnd(cfg.tLo,cfg.tHi);
+      const bs = []; for(let i=0;i<cfg.par;i++) bs.push(rnd(cfg.bLo,cfg.bHi));
+      core = [target + bs.reduce((a,b)=>a+b,0)].concat(bs);
+    } else { // div
+      target = rnd(cfg.tLo,cfg.tHi);
+      const ds = []; for(let i=0;i<cfg.par;i++) ds.push(rnd(cfg.dLo,cfg.dHi));
+      const big = ds.reduce((a,b)=>a*b, target);
+      if(big > cfg.cap) continue;
+      core = [big].concat(ds);
+    }
+
+    const dist = [];
+    for(let i=0;i<cfg.dist;i++){
+      if(key==='add')      dist.push(rnd(cfg.lo,cfg.hi));
+      else if(key==='mul') dist.push(rnd(2,9));
+      else if(key==='sub') dist.push(rnd(1,cfg.bHi+2));
+      else                 dist.push(rnd(2,9));
+    }
+
+    const tiles = core.concat(dist);
+    // never hand the child the answer, and never start already-won
+    if(tiles.indexOf(target) !== -1) continue;
+    if(tiles.some(v=>v<1)) continue;
+    return {tiles: shuffled(tiles), target, par: cfg.par};
+  }
+  // extremely unlikely fallback
+  return {tiles: shuffled([2,3,4,5]), target: (key==='mul'?24:14), par: 2};
+}
+
+/* ================= merge rules ================= */
+function mergeResult(key, a, b){          // a = first tapped, b = second tapped
+  if(key==='add') return a + b;
+  if(key==='mul') return a * b;
+  if(key==='sub') return a > b ? a - b : null;         // bigger first, never negative, never zero
+  const hi = Math.max(a,b), lo = Math.min(a,b);        // div: order-free, must divide evenly
+  return (lo > 0 && hi % lo === 0) ? hi / lo : null;
+}
+
+/* ================= screens ================= */
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active', s.id===id));
+  window.scrollTo(0,0);
+}
+function setTheme(el, p){ el.style.setProperty('--p1', p.c1); el.style.setProperty('--p2', p.c2); }
+function starStr(n){
+  let s = '';
+  for(let i=0;i<3;i++) s += i<n ? '<span>★</span>' : '<span class="off">★</span>';
+  return s;
+}
+
+/* ---------- home ---------- */
+function renderHome(){
+  const wrap = $('planetList');
+  wrap.innerHTML = '';
+  PLANETS.forEach(p=>{
+    const st = save.progress[p.key].stars.reduce((a,b)=>a+b,0);
+    const done = save.progress[p.key].stars.filter(s=>s>0).length;
+    const b = document.createElement('button');
+    b.className = 'planet';
+    b.innerHTML =
+      `<div class="orb" style="--c1:${p.c1};--c2:${p.c2}">${p.sym}</div>`+
+      `<b>${p.name}</b><small>${done}/5 levels</small>`+
+      `<div class="prog">★ ${st}/15</div>`;
+    b.addEventListener('click', ()=>{ ensureAudio(); sfx.tap(); openMap(p.key); });
+    wrap.appendChild(b);
+  });
+  const on = save.sound;
+  $('soundBtn').textContent = on ? '🔊 Sound: On' : '🔇 Sound: Off';
+  $('soundBtn2').textContent = on ? '🔊' : '🔇';
+}
+
+/* ---------- map ---------- */
+let mapKey = 'add';
+function openMap(key){
+  mapKey = key;
+  const p = PMAP[key], prog = save.progress[key];
+  const scr = $('screen-map');
+  setTheme(scr, p);
+  $('mapTitle').textContent = p.name;
+  $('mapStars').textContent = '★' + prog.stars.reduce((a,b)=>a+b,0);
+  $('mapRule').innerHTML = p.rule;
+  $('mapPath').setAttribute('points', NODE_POS.map(n=>`${n.x},${n.y}`).join(' '));
+
+  const wrap = $('mapWrap');
+  wrap.querySelectorAll('.node').forEach(n=>n.remove());
+  NODE_POS.forEach((pos,i)=>{
+    const unlocked = (i+1) <= prog.unlocked;
+    const b = document.createElement('button');
+    b.className = 'node' + (unlocked ? '' : ' locked');
+    b.style.left = pos.x + '%';
+    b.style.top  = pos.y + '%';
+    b.innerHTML = (unlocked ? (i+1) : '🔒') +
+      (unlocked ? `<span class="stars">${starStr(prog.stars[i])}</span>` : '');
+    b.setAttribute('aria-label', unlocked ? `Level ${i+1}` : `Level ${i+1}, locked`);
+    if(unlocked) b.addEventListener('click', ()=>{ ensureAudio(); sfx.tap(); startLevel(key, i); });
+    wrap.appendChild(b);
+  });
+  show('screen-map');
+}
+
+/* ================= game ================= */
+let G = null, nextId = 1;
+const grid = $('grid');
+
+function startLevel(key, idx){
+  const p = PMAP[key];
+  const lvl = generate(key, idx);
+  G = {
+    key, idx, planet:p,
+    target: lvl.target, par: lvl.par,
+    tiles: lvl.tiles.map(v=>({id:nextId++, v})),
+    cols: lvl.tiles.length <= 4 ? 2 : 3,
+    sel: null, moves: 0, shuffles: 0, busy: false, history: []
+  };
+  const scr = $('screen-game');
+  setTheme(scr, p);
+  $('gameTitle').textContent = `Level ${idx+1} · ${p.name}`;
+  $('gameRule').innerHTML = p.rule;
+  $('targetNum').textContent = G.target;
+  $('nudge').textContent = '';
+  renderGrid();
+  updateHud();
+  show('screen-game');
+}
+
+function tileEl(id){ return grid.querySelector(`[data-id="${id}"]`); }
+
+function snapRects(){
+  const m = {};
+  grid.querySelectorAll('.tile').forEach(el=>{ m[el.dataset.id] = el.getBoundingClientRect(); });
+  return m;
+}
+function applyFlip(prev){
+  grid.querySelectorAll('.tile').forEach(el=>{
+    const before = prev[el.dataset.id]; if(!before) return;
+    const after = el.getBoundingClientRect();
+    const dx = before.left - after.left, dy = before.top - after.top;
+    if(!dx && !dy) return;
+    el.style.transition = 'none';
+    el.style.transform = `translate(${dx}px,${dy}px)`;
+    requestAnimationFrame(()=>{
+      el.style.transition = 'transform .3s cubic-bezier(.2,.9,.3,1), scale .18s ease';
+      el.style.transform = '';
+    });
+  });
+}
+
+function renderGrid(prevRects){
+  grid.style.setProperty('--cols', G.cols);
+  grid.innerHTML = '';
+  G.tiles.forEach(t=>{
+    const b = document.createElement('button');
+    b.className = 'tile' + (G.sel === t.id ? ' sel' : '');
+    b.dataset.id = t.id;
+    b.textContent = t.v;
+    b.setAttribute('aria-label', `Tile ${t.v}`);
+    b.addEventListener('click', ()=>tapTile(t.id));
+    grid.appendChild(b);
+  });
+  if(prevRects) applyFlip(prevRects);
+}
+function renderSel(){
+  grid.querySelectorAll('.tile').forEach(el=>el.classList.toggle('sel', +el.dataset.id === G.sel));
+}
+function updateHud(){
+  $('moveCount').textContent = G.moves;
+  $('parCount').textContent = G.par;
+  $('undoBtn').disabled = G.history.length === 0;
+}
+function wiggle(id){
+  const el = tileEl(id); if(!el) return;
+  el.classList.remove('wiggle'); void el.offsetWidth; el.classList.add('wiggle');
+  setTimeout(()=>el.classList.remove('wiggle'), 520);
+}
+
+function tapTile(id){
+  if(!G || G.busy) return;
+  ensureAudio();
+  $('nudge').textContent = '';
+  if(G.sel === id){ G.sel = null; renderSel(); sfx.tap(); return; }
+  if(G.sel === null){ G.sel = id; renderSel(); sfx.pick(); return; }
+
+  const a = G.tiles.find(t=>t.id === G.sel);
+  const b = G.tiles.find(t=>t.id === id);
+  if(!a || !b) return;
+  const res = mergeResult(G.key, a.v, b.v);
+  if(res === null || res === undefined){
+    wiggle(a.id); wiggle(b.id); sfx.nope();
+    $('nudge').textContent = G.key === 'div'
+      ? "Those don't share evenly — try another pair!"
+      : 'Tap the bigger number first!';
+    return;                                   // keep the first tile selected, no penalty
+  }
+  doMerge(a, b, res);
+}
+
+function doMerge(a, b, res){
+  G.busy = true;
+  const elA = tileEl(a.id), elB = tileEl(b.id);
+  const ra = elA.getBoundingClientRect(), rb = elB.getBoundingClientRect();
+  elA.classList.remove('sel');
+  elA.style.zIndex = 5;
+  elA.style.transition = 'transform .26s ease-in, opacity .26s ease-in';
+  elA.style.transform = `translate(${rb.left - ra.left}px, ${rb.top - ra.top}px) scale(.4)`;
+  elA.style.opacity = '0';
+  elB.classList.add('receiving');
+  sfx.merge();
+
+  setTimeout(()=>{
+    G.history.push({tiles: G.tiles.map(t=>({id:t.id, v:t.v})), moves: G.moves});
+    const prev = snapRects();
+    delete prev[a.id];
+    G.tiles = G.tiles.filter(t=>t.id !== a.id);
+    b.v = res;
+    G.moves++;
+    G.sel = null;
+    renderGrid(prev);
+    const nb = tileEl(b.id);
+    if(nb){ nb.classList.add('pop'); setTimeout(()=>nb.classList.remove('pop'), 430); }
+    updateHud();
+    G.busy = false;
+    if(res === G.target) win();
+    else checkStuck();
+  }, 260);
+}
+
+function hasAnyValidMove(){
+  for(let i=0;i<G.tiles.length;i++)
+    for(let j=0;j<G.tiles.length;j++){
+      if(i===j) continue;
+      if(mergeResult(G.key, G.tiles[i].v, G.tiles[j].v) !== null) return true;
+    }
+  return false;
+}
+function checkStuck(){
+  if(G.tiles.some(t=>t.v === G.target)){ win(); return; }
+  if(G.tiles.length < 2 || !hasAnyValidMove())
+    $('nudge').textContent = 'Hmm! Tap Undo, or grab some New tiles ✨';
+}
+
+/* ---------- win ---------- */
+function win(){
+  const earned = (G.moves <= G.par && G.shuffles === 0) ? 3
+               : (G.moves <= G.par + 2 && G.shuffles <= 1) ? 2 : 1;
+  const prog = save.progress[G.key];
+  prog.stars[G.idx] = Math.max(prog.stars[G.idx], earned);
+  if(G.idx + 1 < 5) prog.unlocked = Math.max(prog.unlocked, G.idx + 2);
+  persist();
+
+  $('winTitle').textContent = ['','Nice work!','Great job!','Perfect!'][earned];
+  $('winSub').textContent = `You made ${G.target} in ${G.moves} move${G.moves===1?'':'s'}.`;
+  const sw = $('winStars');
+  sw.innerHTML = '';
+  for(let i=0;i<3;i++){
+    const s = document.createElement('span');
+    s.textContent = '★';
+    if(i < earned) s.classList.add('on');
+    s.style.animationDelay = (0.15 + i*0.16) + 's';
+    sw.appendChild(s);
+  }
+  $('nextBtn').style.display = (G.idx + 1 < 5) ? '' : 'none';
+  const ov = $('winOverlay');
+  setTheme(ov, G.planet);
+  ov.hidden = false;
+  sfx.win();
+  confetti();
+}
+function confetti(){
+  const box = $('confetti');
+  const cols = ['#ffd166','#ff7b8a','#7cd6ff','#9dffbf','#c99bff','#ffffff'];
+  for(let i=0;i<44;i++){
+    const c = document.createElement('i');
+    c.style.left = Math.random()*100 + '%';
+    c.style.background = cols[Math.floor(Math.random()*cols.length)];
+    c.style.animationDuration = (1.7 + Math.random()*1.4) + 's';
+    c.style.animationDelay = (Math.random()*0.5) + 's';
+    box.appendChild(c);
+    setTimeout(()=>c.remove(), 3600);
+  }
+}
+
+/* ================= buttons ================= */
+$('mapBack').addEventListener('click', ()=>{ sfx.tap(); renderHome(); show('screen-home'); });
+$('gameBack').addEventListener('click', ()=>{ sfx.tap(); openMap(G.key); });
+
+$('undoBtn').addEventListener('click', ()=>{
+  if(!G || G.busy || !G.history.length) return;
+  ensureAudio(); sfx.tap();
+  const prev = snapRects();
+  const snap = G.history.pop();
+  G.tiles = snap.tiles;
+  G.moves = snap.moves;
+  G.sel = null;
+  renderGrid(prev);
+  updateHud();
+  $('nudge').textContent = '';
+});
+
+$('shuffleBtn').addEventListener('click', ()=>{
+  if(!G || G.busy) return;
+  ensureAudio(); sfx.pick();
+  const shuffles = G.shuffles + 1;
+  startLevel(G.key, G.idx);
+  G.shuffles = shuffles;
+  $('nudge').textContent = 'Fresh tiles! 🌟';
+});
+
+function toggleSound(){
+  ensureAudio();
+  save.sound = !save.sound;
+  persist();
+  $('soundBtn').textContent  = save.sound ? '🔊 Sound: On' : '🔇 Sound: Off';
+  $('soundBtn2').textContent = save.sound ? '🔊' : '🔇';
+  if(save.sound) sfx.pick();
+}
+$('soundBtn').addEventListener('click', toggleSound);
+$('soundBtn2').addEventListener('click', toggleSound);
+
+$('nextBtn').addEventListener('click', ()=>{
+  $('winOverlay').hidden = true;
+  sfx.tap();
+  if(G.idx + 1 < 5) startLevel(G.key, G.idx + 1);
+  else openMap(G.key);
+});
+$('againBtn').addEventListener('click', ()=>{
+  $('winOverlay').hidden = true; sfx.tap(); startLevel(G.key, G.idx);
+});
+$('mapBtn').addEventListener('click', ()=>{
+  $('winOverlay').hidden = true; sfx.tap(); openMap(G.key);
+});
+
+/* ================= go ================= */
+renderHome();
+show('screen-home');
+</script>
+</body>
+</html>
