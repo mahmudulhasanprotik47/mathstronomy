@@ -74,13 +74,10 @@ export default defineConfig([
 
 ```
 ## Status
-✅ Day 1 complete — game data, level generation, merge rules, save/load, and sound
-all ported to typed TypeScript modules, with a 96-test Vitest suite covering merge
-logic, level generation (including solvability), and the 15-level difficulty curve.
-🚧 Day 2 next — building the actual React components (planet select, level map,
-game board, results).git 
-✅ Day 2 complete — fully componentized in React: planet select, level map (15 levels
-per planet), game board with tile animations, results overlay. 115 tests passing,
-manually playtested end-to-end.
-🚧 Day 3 next — visual redesign pass (this is the frontend/design showcase piece),
-plus final polish and deploy check.
+✅ Complete — Mathstronomy is a tap-to-merge arithmetic puzzle game (four operations,
+15 levels each) rebuilt from a single-file prototype into a full React + TypeScript
+project: typed game logic (115 passing tests), fully componentized UI, and a custom
+"Celestial Atlas" visual redesign with illustrated planets and a layered space
+background. Deployed on Vercel with automatic deploy from GitHub.
+
+**[Live demo →](https://mathstronomy.vercel.app)**
