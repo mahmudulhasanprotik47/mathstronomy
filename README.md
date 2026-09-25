@@ -73,3 +73,9 @@ export default defineConfig([
 ])
 
 ```
+## Status
+✅ Day 1 complete — game data, level generation, merge rules, save/load, and sound
+all ported to typed TypeScript modules, with a 96-test Vitest suite covering merge
+logic, level generation (including solvability), and the 15-level difficulty curve.
+🚧 Day 2 next — building the actual React components (planet select, level map,
+game board, results).
