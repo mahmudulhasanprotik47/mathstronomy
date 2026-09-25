@@ -21,10 +21,7 @@ const LS_KEY = 'numberExplorers.v1';
 
 export function freshSave(): SaveData {
   const progress = Object.fromEntries(
-    PLANETS.map((p) => [
-      p.key,
-      { unlocked: 1, stars: Array<StarCount>(LEVEL_COUNT).fill(0) },
-    ])
+    PLANETS.map((p) => [p.key, { unlocked: 1, stars: Array<StarCount>(LEVEL_COUNT).fill(0) }])
   ) as Record<PlanetKey, PlanetProgress>;
   return { v: 2, sound: true, progress };
 }

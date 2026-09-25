@@ -1,122 +1,101 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useRef, useState } from 'react';
+import { GameBoard } from './components/GameBoard';
+import { LevelMap } from './components/LevelMap';
+import { PlanetSelect } from './components/PlanetSelect';
+import { ResultsOverlay } from './components/ResultsOverlay';
+import { Starfield } from './components/Starfield';
+import { LEVEL_COUNT } from './data/levels';
+import { PMAP, type PlanetKey } from './data/planets';
+import { useGameSave } from './hooks/useGameSave';
+import { useSound } from './hooks/useSound';
+import type { WinResult } from './logic/gameState';
+
+// Plain screen state instead of a router: no deep links needed, and no URL states to guard.
+type Screen =
+  | { name: 'home' }
+  | { name: 'map'; planet: PlanetKey }
+  | { name: 'game'; planet: PlanetKey; idx: number; run: number };
 
 function App() {
-  const [count, setCount] = useState(0)
+  const { save, toggleSound, recordWin } = useGameSave();
+  const { play } = useSound(save.sound);
+  const [screen, setScreen] = useState<Screen>({ name: 'home' });
+  const [result, setResult] = useState<WinResult | null>(null);
+  const runs = useRef(0);
+
+  const navigate = (next: Screen) => {
+    window.scrollTo(0, 0);
+    setResult(null);
+    setScreen(next);
+  };
+  const goHome = () => navigate({ name: 'home' });
+  const goMap = (planet: PlanetKey) => navigate({ name: 'map', planet });
+  // `run` changes the GameBoard key, so replaying the same level still gets a fresh board.
+  const goLevel = (planet: PlanetKey, idx: number) =>
+    navigate({ name: 'game', planet, idx, run: ++runs.current });
+  const tapThen = (action: () => void) => {
+    play('tap');
+    action();
+  };
+
+  const handleToggleSound = () => {
+    if (!save.sound) play('pick', { ignoreMute: true });
+    toggleSound();
+  };
+
+  const handleWin = (r: WinResult) => {
+    if (screen.name !== 'game') return;
+    recordWin(screen.planet, screen.idx, r.stars);
+    setResult(r);
+    play('win');
+  };
 
   return (
     <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
+      <Starfield />
+      <main id="app">
+        {screen.name === 'home' && (
+          <PlanetSelect
+            progress={save.progress}
+            soundOn={save.sound}
+            onToggleSound={handleToggleSound}
+            onPick={(key) => tapThen(() => goMap(key))}
+          />
+        )}
+        {screen.name === 'map' && (
+          <LevelMap
+            key={screen.planet}
+            planet={PMAP[screen.planet]}
+            progress={save.progress[screen.planet]}
+            onBack={() => tapThen(goHome)}
+            onPlay={(idx) => tapThen(() => goLevel(screen.planet, idx))}
+          />
+        )}
+        {screen.name === 'game' && (
+          <GameBoard
+            key={`${screen.planet}-${screen.idx}-${screen.run}`}
+            planet={PMAP[screen.planet]}
+            idx={screen.idx}
+            soundOn={save.sound}
+            onToggleSound={handleToggleSound}
+            onBack={() => tapThen(() => goMap(screen.planet))}
+            onWin={handleWin}
+            play={play}
+          />
+        )}
+      </main>
+      {screen.name === 'game' && result && (
+        <ResultsOverlay
+          planet={PMAP[screen.planet]}
+          result={result}
+          hasNext={screen.idx + 1 < LEVEL_COUNT}
+          onNext={() => tapThen(() => goLevel(screen.planet, screen.idx + 1))}
+          onAgain={() => tapThen(() => goLevel(screen.planet, screen.idx))}
+          onMap={() => tapThen(() => goMap(screen.planet))}
+        />
+      )}
     </>
-  )
+  );
 }
 
-export default App
+export default App;

@@ -46,7 +46,4 @@ export const PLANETS: readonly Planet[] = [
   },
 ];
 
-export const PMAP = Object.fromEntries(PLANETS.map((p) => [p.key, p])) as Record<
-  PlanetKey,
-  Planet
->;
+export const PMAP = Object.fromEntries(PLANETS.map((p) => [p.key, p])) as Record<PlanetKey, Planet>;

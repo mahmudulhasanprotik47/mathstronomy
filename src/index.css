@@ -1,111 +1,525 @@
-:root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+/* Ported from legacy-reference/index.html. Same look; only selectors and the
+   screen/overlay show-hide rules changed, plus the map height now scales with level count.
+   The pop/wiggle keyframes live in src/hooks/useTileAnimations.ts (Web Animations API). */
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
+/* ---------- base ---------- */
+*,
+*::before,
+*::after {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
-
+:root {
+  --bg1: #070b1e;
+  --bg2: #161f47;
+  --panel: rgba(255, 255, 255, 0.07);
+  --panel2: rgba(255, 255, 255, 0.11);
+  --stroke: rgba(255, 255, 255, 0.16);
+  --text: #eef1ff;
+  --muted: #9fa9cf;
+  --gold: #ffd166;
+  --p1: #ff9440; /* current planet colours */
+  --p2: #ff5f6d;
+  --radius: 22px;
+}
+html,
 body {
-  margin: 0;
+  height: 100%;
+}
+body {
+  font-family:
+    'SF Pro Rounded',
+    'Segoe UI Variable Display',
+    'Segoe UI',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(120% 90% at 50% 0%, var(--bg2) 0%, var(--bg1) 60%, #04061199 100%) fixed,
+    var(--bg1);
+  min-height: 100%;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+button {
+  font: inherit;
+  color: inherit;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+/* ---------- starfield ---------- */
+.sky {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
 }
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
+.sky i {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  background: #fff;
+  animation: tw 4s ease-in-out infinite;
+}
+@keyframes tw {
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: scale(0.7);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1);
   }
 }
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
+
+/* ---------- layout ---------- */
+#app {
+  position: relative;
+  z-index: 1;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 18px 16px calc(28px + env(safe-area-inset-bottom));
+}
+/* Only the active screen is mounted, so this plays on every screen change. */
+.screen {
+  animation: in 0.32s ease both;
+}
+@keyframes in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
-p {
-  margin: 0;
-}
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+.title {
+  text-align: center;
+  margin: 14px 0 6px;
+  font-size: clamp(30px, 9vw, 42px);
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  background: linear-gradient(100deg, #fff, #ffd166 45%, #8fd8ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
-
-code {
+.sub {
+  text-align: center;
+  color: var(--muted);
   font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+  margin-bottom: 22px;
+}
+
+/* ---------- home planets ---------- */
+.planets {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.planet {
+  position: relative;
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius);
+  padding: 16px 12px 14px;
+  text-align: center;
+  transition:
+    transform 0.18s ease,
+    background 0.18s ease;
+  overflow: hidden;
+}
+.planet:active {
+  transform: scale(0.96);
+}
+.planet .orb {
+  width: 82px;
+  height: 82px;
+  margin: 0 auto 10px;
+  border-radius: 50%;
+  position: relative;
+  display: grid;
+  place-items: center;
+  font-size: 40px;
+  font-weight: 800;
+  color: #fff;
+  background:
+    radial-gradient(circle at 32% 28%, #ffffff88, transparent 42%),
+    linear-gradient(150deg, var(--c1), var(--c2));
+  box-shadow:
+    0 10px 26px -8px var(--c2),
+    inset 0 -10px 20px -8px #0008;
+  animation: bob 5s ease-in-out infinite;
+}
+.planet .orb::after {
+  content: '';
+  position: absolute;
+  inset: -14px -26px;
+  border-radius: 50%;
+  border: 3px solid #ffffff2e;
+  border-bottom-color: transparent;
+  border-top-color: transparent;
+  transform: rotate(-18deg);
+}
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+.planet b {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+}
+.planet small {
+  display: block;
+  color: var(--muted);
+  font-size: 12.5px;
+  margin-top: 3px;
+}
+.planet .prog {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--gold);
+  font-weight: 700;
+}
+
+/* ---------- top bar ---------- */
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.back {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  flex: none;
+  transition: transform 0.15s;
+}
+.back:active {
+  transform: scale(0.9);
+}
+.bar h2 {
+  font-size: 19px;
+  font-weight: 800;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.icobtn {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  flex: none;
+}
+.icobtn:active {
+  transform: scale(0.9);
+}
+
+/* ---------- level map ---------- */
+/* Grows with level count (--count) so nodes never overlap; the page scrolls instead. */
+.mapwrap {
+  position: relative;
+  height: calc(var(--count, 5) * 75px);
+  margin: 10px 0 4px;
+  background: linear-gradient(180deg, #ffffff0a, #ffffff03);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.mapwrap svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 74px;
+  height: 74px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+  font-weight: 800;
+  background: linear-gradient(150deg, var(--p1), var(--p2));
+  border: 3px solid #ffffff33;
+  box-shadow: 0 12px 24px -10px var(--p2);
+  transition: transform 0.16s ease;
+}
+.node:active {
+  transform: translate(-50%, -50%) scale(0.92);
+}
+.node.locked {
+  background: #ffffff12;
+  border-color: #ffffff1c;
+  color: #7a83a8;
+  box-shadow: none;
+  cursor: default;
+}
+.node .stars {
+  position: absolute;
+  bottom: -19px;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--gold);
+  white-space: nowrap;
+  text-shadow: 0 1px 3px #000;
+}
+.node .stars .off {
+  color: #ffffff30;
+}
+.legend {
+  text-align: center;
+  color: var(--muted);
+  font-size: 13.5px;
+  margin-top: 10px;
+  line-height: 1.5;
+}
+
+/* ---------- game ---------- */
+.targetcard {
+  background: linear-gradient(150deg, var(--p1), var(--p2));
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  text-align: center;
+  box-shadow: 0 14px 30px -16px var(--p2);
+  margin-bottom: 6px;
+}
+.targetcard .lab {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1.6px;
+  opacity: 0.85;
+  font-weight: 700;
+}
+.targetcard .num {
+  font-size: clamp(44px, 15vw, 62px);
+  font-weight: 900;
+  line-height: 1.05;
+  text-shadow: 0 3px 0 #0002;
+}
+.rule {
+  text-align: center;
+  color: var(--muted);
+  font-size: 13.5px;
+  margin: 8px 4px 12px;
+  line-height: 1.45;
+}
+.hud {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+.hud b {
+  color: var(--text);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 3), 1fr);
+  gap: 12px;
+  margin: 0 auto;
+  max-width: 420px;
+}
+.tile {
+  aspect-ratio: 1/1;
+  border-radius: 20px;
+  font-size: clamp(24px, 7.5vw, 34px);
+  font-weight: 800;
+  background: linear-gradient(155deg, var(--p1), var(--p2));
+  border: 3px solid #ffffff1f;
+  box-shadow:
+    0 10px 22px -12px #000,
+    inset 0 -8px 16px -10px #0006;
+  display: grid;
+  place-items: center;
+  position: relative;
+  transition:
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    scale 0.18s ease;
+}
+.tile.sel {
+  border-color: #fff;
+  scale: 1.07;
+  box-shadow:
+    0 0 0 4px #ffffff55,
+    0 14px 26px -10px var(--p2);
+}
+.tile.receiving {
+  scale: 1.1;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+.btn {
+  padding: 12px 18px;
+  border-radius: 16px;
+  background: var(--panel2);
+  border: 1px solid var(--stroke);
+  font-weight: 700;
+  font-size: 15px;
+  transition:
+    transform 0.15s ease,
+    background 0.15s;
+}
+.btn:active {
+  transform: scale(0.94);
+}
+.btn[disabled] {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.btn.big {
+  background: linear-gradient(150deg, var(--p1), var(--p2));
+  border-color: #ffffff33;
+  padding: 14px 26px;
+  font-size: 17px;
+}
+.nudge {
+  text-align: center;
+  margin-top: 14px;
+  color: var(--gold);
+  font-size: 14px;
+  font-weight: 600;
+  min-height: 20px;
+}
+
+/* ---------- win overlay ---------- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: #04061dcc;
+  backdrop-filter: blur(6px);
+  animation: in 0.3s ease both;
+}
+.card {
+  width: 100%;
+  max-width: 360px;
+  background: linear-gradient(170deg, #20295a, #141b3d);
+  border: 1px solid var(--stroke);
+  border-radius: 26px;
+  padding: 26px 22px;
+  text-align: center;
+  box-shadow: 0 30px 70px -20px #000;
+}
+.card h3 {
+  font-size: 28px;
+  font-weight: 900;
+  margin-bottom: 4px;
+}
+.card p {
+  color: var(--muted);
+  font-size: 14.5px;
+  margin-bottom: 14px;
+}
+.bigstars {
+  font-size: 40px;
+  letter-spacing: 6px;
+  margin: 6px 0 12px;
+  color: #ffffff22;
+}
+.bigstars span {
+  display: inline-block;
+  animation: st 0.5s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+.bigstars span.on {
+  color: var(--gold);
+  text-shadow: 0 0 18px #ffd16688;
+}
+@keyframes st {
+  from {
+    scale: 0;
+    rotate: -40deg;
+  }
+  to {
+    scale: 1;
+    rotate: 0deg;
+  }
+}
+.card .actions {
+  margin-top: 6px;
+}
+.confetti {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  overflow: hidden;
+}
+.confetti i {
+  position: absolute;
+  top: -24px;
+  width: 10px;
+  height: 15px;
+  border-radius: 2px;
+  animation: fall linear forwards;
+}
+@keyframes fall {
+  to {
+    transform: translateY(108vh) rotate(760deg);
+    opacity: 0.15;
+  }
+}
+
+@media (max-width: 360px) {
+  .planets {
+    gap: 10px;
+  }
+  .planet .orb {
+    width: 70px;
+    height: 70px;
+    font-size: 34px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.05s !important;
+  }
 }
